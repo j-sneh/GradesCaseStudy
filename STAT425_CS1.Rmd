@@ -120,7 +120,7 @@ Since the $p = 0.8717 > \alpha$  (p-value is greater than an alpha level of 0.05
 
 So, our final model (before diagonistcs) is blah
 ```{r}
-grades.reducedmlr = lm(exam2 ~ exam1 + semester + hw)
+grades.reducedmlr = lm(exam2 ~ exam1 + semester + hw, data=grades)
 summary(grades.reducedmlr)
 ```
 ## Unusual Observations and Model Assumptions
