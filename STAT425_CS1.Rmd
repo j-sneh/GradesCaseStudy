@@ -11,12 +11,13 @@ output: pdf_document
 ```{r}
 grades <- read.csv("grades.csv", header=TRUE)
 dim(grades)
+
 ```
 
 
 ## Model Selection
 
-We want to make a model with 95% confidence (i.e. $\alpha$ )
+We want to make a model with 95% confidence (i.e. $\alpha = 0.05$)
 
 ```{r}
 grades.mlr <- lm(exam2 ~ . ,data=grades)
@@ -24,7 +25,80 @@ summary(grades.mlr)
 ```
 
 Based on the full model summary above, we may want to look into dropping project, cs, and participation from the dataset 
-since the p-values in the summary output for project, cs, and participation are all greater than 0.05. 
+since the t-values in the summary output for project, cs, and participation are all small, meaning that they're likely up to chance.
+
+However, the individual t-tests do not tell us enough information to drop multiple predictors from our model at a time.
+
+So, we can start by dropping an individual predictor from our model. We will check `project`.
+
+Our null and alternative hypothesis are as follows.
+
+\[
+\begin{cases}
+    H_0,& \beta_{project} = 0\\
+    H_A, & \beta_{project} \neq 0
+\end{cases}
+\]
+
+By conducting an individual t-test (which can be found in our summary output), we can see that the t-test statistics for project is 0.397.
+## TODO PLEASE CHECK IF WE NEED TO BE THOROUGH AND MENTION WHICH DISTRIBUTION THESE ARE FROM
+This comes from a .
+Thus, we can see that the p-value for project is 0.692. $p = 0.692 > 0.05 = \alpha$. Thus, we fail to reject the null hypothesis, meaning that 
+it is likely that $\beta_{project} = 0$. In other words, we can drop project from our model.
+
+This leaves us with the following reduced model:
+```{r}
+grades.reducedmlr1 = lm(exam2~exam1 + semester + hw + cs + participation, data=grades)
+summary(grades.reducedmlr1)
+anova(grades.mlr, grades.reducedmlr1)
+```
+## Can we reference the overall summary and p-values to give us guidance on where to look next?
+From the summary, We can see that the p-values for cs and participation have changed. They are still high, so we can conduct a different test.
+\[
+\begin{cases}
+    H_0,& \beta_{participation} = \beta_{cs} = 0\\
+    H_A, & \text{Either } \beta_{participation} \text{ or } \beta_{cs} \text{ is not equal to zero}
+\end{cases}
+\]
+
+
+```{r}
+library(ellipse)
+library(ggplot2)
+```
+
+We can draw the confidence region (as an ellipse) for both participation and for cs. If the point (0,0) falls inside of our confidence region, then it is likely that both the coefficients $\beta_{cs}$ and $\beta_{participation}$ are zero—as according to the null hypothesis.
+```{r}
+intervals <-confint(grades.reducedmlr1)
+cr_ellipse <- ellipse(grades.reducedmlr1, c(5,6), level=0.95)
+
+par_interval <- confint(grades.reducedmlr1, level = 0.95, 'participation')
+cs_interval <- confint(grades.reducedmlr1, level = 0.95, 'cs')
+
+cr_df <- as.data.frame(cr_ellipse)
+cr_plot <- 
+ggplot(data=cr_df, aes(x=participation, y=cs)) + 
+  ggtitle("Confidence Region -- Joint Estimation for participation and cs") +
+  geom_path(aes(x=participation,y=cs), colour='mediumorchid') +
+  geom_point(x=coef(grades.reducedmlr1)[2], y=coef(grades.reducedmlr1)[3],  
+             shape=3, size=3, colour='mediumorchid') + 
+  geom_hline(yintercept = cs_interval[1], lty=2) +
+  geom_hline(yintercept = cs_interval[2], lty=2) +
+  geom_vline(xintercept = par_interval[1], lty=2) +
+  geom_vline(xintercept = par_interval[2], lty=2)+ 
+  geom_point(x=0, y=0, shape=1, size=3, colour='green')
+
+plot(cr_plot)
+
+```
+
+As we can see, the origin—which is the green dot—falls inside the confidence region. 
+Thus, it is likely enough that both $\beta_{cs}$ and $\beta_{participation}$ are zero.
+Therefore, we can drop them both from our model.
+
+
+
+
 
 
 
@@ -38,10 +112,50 @@ Our null and alternative hypothesis are as follows:
 
 
 ```{r}
-grades.reducedmlr = lm(exam2~exam1 + semester + hw, data=grades)
-summary(grades.reducedmlr)
-anova(grades.mlr, grades.reducedmlr)
+grades.reducedmlr1 = lm(exam2~exam1 + semester + hw + cs + participation, data=grades)
+summary(grades.reducedmlr1)
+anova(grades.mlr, grades.reducedmlr1)
 ```
 Since the $p = 0.8717 > \alpha$  (p-value is greater than an alpha level of 0.05) in the anova ouput, we fail to reject the null hypothesis with 95% level of confidence.
 
 ## Unusual Observations and Model Assumptions
+
+Now we can analyze the final model for unusual observations and check for deviations from the model assumptions.
+
+
+### Constant variances
+
+First, we can check the model assumption for constant variances by checking  the residual vs. fitted plot. 
+```{r}
+plot(grades.reducedmlr, which=1)
+```
+
+From the residuals vs. fitted plots, we can see the the assumptions for constant variance are not met because the residuals are not evenly disributed around the 0 line, and seem to decrease in magnitude as the residuals increase.
+
+### Normality
+Next, we can chck for normaltiy of the residuals by creating a QQ plot.
+```{r}
+plot(grades.reducedmlr, which=2)
+```
+From the QQ plot, we can see that we seem to have departures from the normality assumption as points along the edges of the plot don't follow the straight line. 
+We can attempt to remedy this and reduce the non-normality of the errors by performing a Box-Cox transformation.
+
+### Serial Dependence
+It is not possible to check serial dependence for this model because there is no order or time value associated with the data points.
+
+
+### Unusual Observations
+
+
+#### High Leverage points
+
+```{r}
+grades.leverages = lm.influence(grades.reducedmlr)$hat
+head(grades.leverages)
+```
+
+
+#### Outliers
+
+#### Influential Observations
+
