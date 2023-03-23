@@ -1,0 +1,49 @@
+---
+title: "Case Study 1"
+author: "Jonathan Sneh, Ishani Tarafdar, Georges Durand, Raul Higareda"
+date: "2023-03-28"
+output: pdf_document
+---
+
+
+## Data Explorations and Summary Statistics
+
+```{r}
+grades <- read.csv("grades.csv", header=TRUE)
+dim(grades)
+```
+
+
+## Model Selection
+
+We want to make a model with 95% confidence (i.e. $\alpha$ )
+
+```{r}
+grades.mlr <- lm(exam2 ~ . ,data=grades)
+summary(grades.mlr)
+```
+
+Based on the full model summary above, we may want to look into dropping project, cs, and participation from the dataset 
+since the p-values in the summary output for project, cs, and participation are all greater than 0.05. 
+
+
+
+Our null and alternative hypothesis are as follows: 
+\[
+\begin{cases}
+    H_0,& \beta_{project} = \beta_{cs} = \beta_{participation}\\
+    H_A, & \text{Either } \beta_{project}, \beta_{cs}, \text{ or } \beta_{participation} \text{ is not equal to zero}
+\end{cases}
+\]
+
+
+```{r}
+grades.reducedmlr = lm(exam2~exam1 + semester + hw, data=grades)
+summary(grades.reducedmlr)
+anova(grades.mlr, grades.reducedmlr)
+```
+Since the p-value is greater than an alpha level of 0.05 in the anova ouput, we fail to reject the null hypothesis with 95% level of confidence.
+
+
+
+## Unusual Observations and Model Assumptions
