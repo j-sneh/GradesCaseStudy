@@ -118,6 +118,11 @@ anova(grades.mlr, grades.reducedmlr1)
 ```
 Since the $p = 0.8717 > \alpha$  (p-value is greater than an alpha level of 0.05) in the anova ouput, we fail to reject the null hypothesis with 95% level of confidence.
 
+So, our final model (before diagonistcs) is blah
+```{r}
+grades.reducedmlr = lm(exam2 ~ exam1 + semester + hw)
+summary(grades.reducedmlr)
+```
 ## Unusual Observations and Model Assumptions
 
 Now we can analyze the final model for unusual observations and check for deviations from the model assumptions.
