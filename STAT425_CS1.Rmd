@@ -42,8 +42,6 @@ grades.reducedmlr = lm(exam2~exam1 + semester + hw, data=grades)
 summary(grades.reducedmlr)
 anova(grades.mlr, grades.reducedmlr)
 ```
-Since the p-value is greater than an alpha level of 0.05 in the anova ouput, we fail to reject the null hypothesis with 95% level of confidence.
-
-
+Since the $p = 0.8717 > \alpha$  (p-value is greater than an alpha level of 0.05) in the anova ouput, we fail to reject the null hypothesis with 95% level of confidence.
 
 ## Unusual Observations and Model Assumptions
