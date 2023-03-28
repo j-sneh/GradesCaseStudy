@@ -5,13 +5,19 @@ date: "2023-03-28"
 output: pdf_document
 ---
 
+```{r}
+library(ellipse)
+library(ggplot2)
+library(MASS)
+library(faraway)
+```
+
 ## Data Explorations and Summary Statistics
 
 ```{r}
 grades <- read.csv("grades.csv", header=TRUE)
 grades <- grades[1:6]
 dim(grades)
-
 ```
 
 
@@ -28,15 +34,6 @@ We want to make a model with 95% confidence (i.e. $\alpha = 0.05$)
 ```{r}
 grades.mlr <- lm(exam2 ~ hw + cs + participation + exam1 + project ,data=grades)
 summary(grades.mlr)
-```
-
-```{r}
-hist(grades.mlr$residuals)
-predicted_values <- predict(grades.mlr)
-plot(x = predicted_values, y = residuals(grades.mlr), 
-     xlab = "Predicted values", ylab = "Residuals", 
-     main = "Residual plot for heteroscedasticity check")
-plot(grades.mlr)
 ```
 
 Based on the full model summary above, we may want to look into dropping project, cs, and participation from the dataset 
@@ -75,12 +72,6 @@ From the summary, We can see that the p-values for cs and participation have cha
     H_A, & \text{Either } \beta_{participation} \text{ or } \beta_{cs} \text{ is not equal to zero}
 \end{cases}
 \]
-
-
-```{r}
-library(ellipse)
-library(ggplot2)
-```
 
 We can draw the confidence region (as an ellipse) for both participation and for cs. If the point (0,0) falls inside of our confidence region, then it is likely that both the coefficients $\beta_{cs}$ and $\beta_{participation}$ are zero—as according to the null hypothesis.
 ```{r}
@@ -122,6 +113,7 @@ grades.reducedmlr = lm(exam2 ~ exam1 + hw, data=grades)
 summary(grades.reducedmlr)
 ```
 
+
 ## Unusual Observations and Model Assumptions
 
 Now we can analyze the final model for unusual observations and check for deviations from the model assumptions.
@@ -149,10 +141,7 @@ From the QQ plot, we can see that we seem to have departures from the normality 
 We can attempt to remedy this and reduce the non-normality of the errors by performing a Box-Cox transformation.
 
 ```{r}
-
-library(MASS)
 grades.transformation = boxcox(grades.reducedmlr, lambda=seq(-2, 2, length=400))
-
 ```
 Looking at the Box-Cox plot, the optimal $\lambda$ is somewhere between 1.5 and 2.  We can try both to see which provides better results.
 
@@ -162,6 +151,8 @@ grades2 = grades
 grades2$grades.new = ('^'(grades2$exam2,2)-1) / 2
 grades.mlr.tr = lm(grades.new ~ exam1 + hw, data=grades2[])
 summary(grades.mlr.tr)
+```
+```{r}
 plot(grades.mlr.tr)
 ```
 
@@ -201,36 +192,42 @@ grades.resid = rstudent(grades.reducedmlr);
 
 # Critical value WITH Bonferroni correction
 bonferroni_cv = qt(.05/(2*n), n-p-1) 
-
 grades.resid.sorted = sort(abs(grades.resid), decreasing=TRUE)[1:10]
 print(grades.resid.sorted)
+```
 
+```{r}
 grades.outliers = grades.resid.sorted[abs(grades.resid.sorted) > abs(bonferroni_cv)]
 print(grades.outliers)
-
+```
+```{r}
 hist(grades.reducedmlr$residuals)
 hist(grades.mlr$residuals)
 ```
-
+Looking at the figures above, we used a histogram to plot the residuals between our full model and our reduced model. Our reduced model’s plot is more symmetric than our full model, suggesting our reduced model may fit the data better than our full model. Figure 11 shows the outliers for the full model and figure 12 shows the outliers for the reduced model. As expected, our reduced model has significantly fewer outliers than our full model.
 
 #### Influential Observations
 ```{r}
 grades.cooks = cooks.distance(grades.reducedmlr)
 sort(grades.cooks, decreasing = TRUE)[1:10]
+```
 
+```{r}
 plot(grades.cooks)
+```
 
-library(faraway)
+```{r}
 halfnorm(grades.cooks, 6, labs=as.character(1:length(grades.cooks)), ylab="Cook's distances")
 ```
 
 ```{r}
 grades.cooks = cooks.distance(grades.mlr)
 sort(grades.cooks, decreasing = TRUE)[1:10]
+plot(grades.cooks)
+halfnorm(grades.cooks, 6, labs=as.character(1:length(grades.cooks)), ylab="Cook's distances")
 ```
 
-The number of influential points between the reduced and full model remained the same. It is not bad because the number of points did not increase.
-
+The number of influential points between the reduced and full models remained the same. Neither the full model nor the reduced model had influential points. To note, we can see that none of the cook's distances for the influential points are greater than 1, so we have no ‘highly influential points’.
 
 
 
