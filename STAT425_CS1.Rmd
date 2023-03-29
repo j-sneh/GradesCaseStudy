@@ -2,7 +2,10 @@
 title: "Case Study 1"
 author: "Jonathan Sneh, Ishani Tarafdar, Georges Durand, Raul Higareda"
 date: "2023-03-28"
-output: pdf_document
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
 ---
 
 ```{r}
