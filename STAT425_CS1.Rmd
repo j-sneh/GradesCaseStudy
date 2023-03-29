@@ -29,19 +29,19 @@ heatmap(cor_matrix, symm = TRUE)
 ```
 Looking at the correlation matrix, none of the variables are strongly correlated with another variable, so we do not need to drop any variables based on what we see from the correlation matrix.
 
-We want to make a model with 95% confidence (i.e. $\alpha = 0.05$)
+Throughout our analysis, we will use a significance level of 95% (i.e. $\alpha = 0.05$).
 
 ```{r}
-grades.mlr <- lm(exam2 ~ hw + cs + participation + exam1 + project ,data=grades)
+grades.mlr <- lm(exam2 ~ hw + cs + participation + exam1 + project, data=grades)
 summary(grades.mlr)
 ```
 
 Based on the full model summary above, we may want to look into dropping project, cs, and participation from the dataset 
-since the t-values in the summary output for project, cs, and participation are all small, meaning that they're likely up to chance.
+since the t-values in the summary output for project, cs, and participation are all small.
 
 However, the individual t-tests do not tell us enough information to drop multiple predictors from our model at a time.
 
-So, we can start by dropping an individual predictor from our model. We will check `project`.
+So, we can start by dropping an individual predictor from our model. First, we will check `project`.
 
 Our null and alternative hypothesis are as follows.
 
@@ -52,11 +52,8 @@ Our null and alternative hypothesis are as follows.
 \end{cases}
 \]
 
-By conducting an individual t-test (which can be found in our summary output), we can see that the t-test statistics for project is 0.397.
-## TODO PLEASE CHECK IF WE NEED TO BE THOROUGH AND MENTION WHICH DISTRIBUTION THESE ARE FROM
-This comes from a .
-Thus, we can see that the p-value for project is 0.692. $p = 0.692 > 0.05 = \alpha$. Thus, we fail to reject the null hypothesis, meaning that 
-it is likely that $\beta_{project} = 0$. In other words, we can drop project from our model.
+We can see that the corresponding p-value for project is 0.854. $p = 0.854 > 0.05 = \alpha$. Thus, we fail to reject the null hypothesis, meaning that 
+it is likely that $\beta_{project} = 0$. In other words, we can drop `project` from our model.
 
 This leaves us with the following reduced model:
 ```{r}
@@ -64,8 +61,9 @@ grades.reducedmlr1 = lm(exam2~exam1 + hw + cs + participation, data=grades)
 summary(grades.reducedmlr1)
 anova(grades.mlr, grades.reducedmlr1)
 ```
-## Can we reference the overall summary and p-values to give us guidance on where to look next?
+
 From the summary, We can see that the p-values for cs and participation have changed. They are still high, so we can conduct a different test.
+
 \[
 \begin{cases}
     H_0,& \beta_{participation} = \beta_{cs} = 0\\
@@ -102,11 +100,6 @@ As we can see, the origin—which is the green dot—falls inside the confidence
 Thus, it is likely enough that both $\beta_{cs}$ and $\beta_{participation}$ are zero.
 Therefore, we can drop them both from our model.
 
-
-Since the p-value in the full model is the same as the reduced model, this confirms that the dropped variables were not significant in our model.
-The sample size is quite small, therefore dropping variables may lead to insignificant changes in p value.
-
-
 So, our final model (before diagonistcs) is the following:
 ```{r}
 grades.reducedmlr = lm(exam2 ~ exam1 + hw, data=grades)
@@ -120,7 +113,8 @@ Now we can analyze the final model for unusual observations and check for deviat
 
 ### Constant variances
 
-First, we can check the model assumption for constant variances by checking  the residual vs. fitted plot. 
+First, we can check the model assumption for constant variances by checking  the residual vs. fitted plot.
+
 ```{r}
 plot(grades.reducedmlr, which=1)
 ```
@@ -131,39 +125,65 @@ From the residuals vs. fitted plots, we can see the the assumptions for constant
 Next, we can chck for normaltiy of the residuals by creating a QQ plot.
 ```{r}
 plot(grades.reducedmlr, which=2)
-
-predicted_values <- predict(grades.reducedmlr)
-plot(x = predicted_values, y = residuals(grades.reducedmlr), 
-     xlab = "Predicted values", ylab = "Residuals", 
-     main = "Residual plot for heteroscedasticity check")
 ```
+
 From the QQ plot, we can see that we seem to have departures from the normality assumption as points along the edges of the plot don't follow the straight line. 
 We can attempt to remedy this and reduce the non-normality of the errors by performing a Box-Cox transformation.
+
+### Box-Cox Tranformation
 
 ```{r}
 grades.transformation = boxcox(grades.reducedmlr, lambda=seq(-2, 2, length=400))
 ```
 Looking at the Box-Cox plot, the optimal $\lambda$ is somewhere between 1.5 and 2.  We can try both to see which provides better results.
 
+\newpage 
 
+
+Trying a lambda of 1.5: 
+```{r}
+grades2 = grades
+grades2$grades.new1 = ('^'(grades2$exam2,1.5)-1) / 1.5
+grades.mlr.tr1 = lm(grades.new1 ~ exam1 + hw, data=grades2[])
+summary(grades.mlr.tr1)
+```
+
+
+```{r}
+plot(grades.mlr.tr1, which=1)
+plot(grades.mlr.tr1, which=2)
+```
+
+From the fitted vs. residual plot and QQ plot, the box-cox tranformation did not really fix the assumptions for constant variance and normality. 
+
+
+\newpage 
+
+Trying a lambda of 2: 
 ```{r}
 grades2 = grades
 grades2$grades.new = ('^'(grades2$exam2,2)-1) / 2
 grades.mlr.tr = lm(grades.new ~ exam1 + hw, data=grades2[])
 summary(grades.mlr.tr)
 ```
+
 ```{r}
-plot(grades.mlr.tr)
+plot(grades.mlr.tr, which=1)
+plot(grades.mlr.tr, which=2)
 ```
+
+From the fitted vs. residual plot and QQ plot, the box-cox tranformation did not really fix the assumptions for constant variance and normality. 
+
+
+\newpage 
 
 ### Serial Dependence
 It is not possible to check serial dependence for this model because there is no order or time value associated with the data points.
 
-
 ### Unusual Observations
 
 #### High Leverage points
-
+Here we calculate which samples are our high leverage points
 ```{r}
 grades.leverages = lm.influence(grades.reducedmlr)$hat
 head(grades.leverages)
@@ -175,11 +195,78 @@ grades.leverages.high = grades.leverages[grades.leverages>2*p/n]
 grades.leverages.high
 ```
 
-There are 23 high leverage points within our reduced model versus 50 in our full model. These points have the potential of increasing variability, so having less in our reduced is ideal. This also shows how the dropped variables contributed to high leverage points in the full model.
+Here we plot the leverage points.
+```{r}
+halfnorm(grades.leverages, 6, labs=as.character(1:length(grades.leverages)), ylab="Leverages")
+```
 
+Here we calculate the percent of observations the high leverage points make up.
+```{r}
+length(grades.leverages.high)/n
+```
+
+
+We observe that we have 23 high leverage points, representing about 9% of the observations. These observations are far from the rest and are flagged in the halfnorm plot as well.
+
+Now we need to determine whether the points are good or bad high leverage points. We do this by calculating the IQR for our dependent variable Exam 2 in our original (full) data frame and use this metric to identify the high-leverage observations that don’t “follow the pattern of the data”.
+
+```{r}
+# Calculate the IQR for the dependent variable 
+IQR_y = IQR(grades$exam2)
+
+# Define a range with its lower limit being (Q1 - IQR) and upper limit being (Q3 + IQR) 
+QT1_y = quantile(grades$exam2,0.25)
+QT3_y = quantile(grades$exam2,0.75)
+
+lower_lim_y = QT1_y - IQR_y
+upper_lim_y = QT3_y + IQR_y
+
+vector_lim_y = c(lower_lim_y,upper_lim_y)
+
+# Range for y variable 
+vector_lim_y
+
+
+# Extract observations with high leverage points from the original data frame 
+grades.highlev = grades[grades.leverages > 2*p/n,]
+
+# Select only the observations with leverage points outside the range 
+grades.highlev_lower = grades.highlev[grades.highlev$Y < vector_lim_y[1], ]
+grades.highlev_upper = grades.highlev[grades.highlev$Y > vector_lim_y[2], ]
+grades.highlev2 = rbind(grades.highlev_lower, grades.highlev_upper)
+grades.highlev2
+```
+From the above calculations, there are 0 bad high leverage points, so all the high leverage points are 'good' high leverage points.
+The good high leverage points are points where the value of y follows the pattern of the rest of the data but the x is far away from the sample mean.
+None of our high-leverage points are 'bad' high leverage points, where the y (exam2) doesn't follow the pattern of the rest of the data. 
 
 
 #### Outliers
+
+First, we compute the outliers of the full model
+```{r}
+grades.leverages_full = lm.influence(grades.mlr)$hat
+head(grades.leverages_full)
+
+n = dim(grades)[1] 
+p = length(variable.names(grades.mlr))
+
+# Computing Studentized Residuals
+grades.resid_full = rstudent(grades.mlr); 
+
+# Critical value WITH Bonferroni correction
+bonferroni_cv = qt(.05/(2*n), n-p-1) 
+grades.resid_full.sorted = sort(abs(grades.resid_full), decreasing=TRUE)[1:10]
+print(grades.resid_full.sorted)
+
+grades.outliers_full = grades.resid_full.sorted[abs(grades.resid_full.sorted) > abs(bonferroni_cv)]
+print(grades.outliers_full)
+length(grades.outliers_full)
+```
+
+We see there are no outliers in the full model.
+
+Then, we compute the outliers of our final reduced model.
 ```{r}
 grades.leverages = lm.influence(grades.reducedmlr)$hat
 head(grades.leverages)
@@ -193,25 +280,28 @@ grades.resid = rstudent(grades.reducedmlr);
 # Critical value WITH Bonferroni correction
 bonferroni_cv = qt(.05/(2*n), n-p-1) 
 grades.resid.sorted = sort(abs(grades.resid), decreasing=TRUE)[1:10]
-print(grades.resid.sorted)
-```
-
-```{r}
 grades.outliers = grades.resid.sorted[abs(grades.resid.sorted) > abs(bonferroni_cv)]
 print(grades.outliers)
 ```
+As we can see, there are no outliers in either the reduced or the full model.
+
+
 ```{r}
 hist(grades.reducedmlr$residuals)
 hist(grades.mlr$residuals)
 ```
-Looking at the figures above, we used a histogram to plot the residuals between our full model and our reduced model. Our reduced model’s plot is more symmetric than our full model, suggesting our reduced model may fit the data better than our full model. Figure 11 shows the outliers for the full model and figure 12 shows the outliers for the reduced model. As expected, our reduced model has significantly fewer outliers than our full model.
+Looking at the figures above, we used a histogram to plot the values of residuals in our full model and our reduced model. 
+Both of them do not have any obvious outliers, which agrees with our above analysis of the outliers. 
+Both the histograms look quite similar. The tails seem slightly more symmetric in the reduced model, but not enough to 
+claim that the reduced model fits the normal distribution better.
 
 #### Influential Observations
+Here calcuate cook's distance for our reduced model
 ```{r}
 grades.cooks = cooks.distance(grades.reducedmlr)
 sort(grades.cooks, decreasing = TRUE)[1:10]
 ```
-
+Here we plot the cook's distances
 ```{r}
 plot(grades.cooks)
 ```
@@ -219,6 +309,10 @@ plot(grades.cooks)
 ```{r}
 halfnorm(grades.cooks, 6, labs=as.character(1:length(grades.cooks)), ylab="Cook's distances")
 ```
+
+\newpage
+
+Here we calculate and plot cook's distances for the full model.
 
 ```{r}
 grades.cooks = cooks.distance(grades.mlr)
@@ -227,7 +321,6 @@ plot(grades.cooks)
 halfnorm(grades.cooks, 6, labs=as.character(1:length(grades.cooks)), ylab="Cook's distances")
 ```
 
-The number of influential points between the reduced and full models remained the same. Neither the full model nor the reduced model had influential points. To note, we can see that none of the cook's distances for the influential points are greater than 1, so we have no ‘highly influential points’.
-
-
+The number of influential points between the reduced and full models remained the same. Neither the full model nor the reduced model had influential points. 
+To note, we can see that none of the cook's distances for the influential points are greater than 1, so we have no ‘highly influential points’.
 
